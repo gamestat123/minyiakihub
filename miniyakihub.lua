@@ -1,10 +1,13 @@
--- [[ miniyakihub - Delta Absolute Egg Recognition Fix ]]
+-- [[ miniyakihub - Delta UI & ChilliHub Absolute Recognition Fusion ]]
 local Players          = game:GetService("Players")
 local Workspace        = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService     = game:GetService("TweenService")
 local localPlayer      = Players.LocalPlayer
 
 -- UIの状態管理（初期状態はOFF）
 local Options = { AutoSteal = false }
+local networking = ReplicatedStorage:WaitForChild("Packages", 5) and ReplicatedStorage.Packages:WaitForChild("Networking", 5)
 
 -- =================================================================
 -- 1. Delta専用：UI強制表示（PlayerGui配置 ＆ 画面中央固定）
@@ -16,9 +19,9 @@ end
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "miniyakihub_DeltaAbsoluteUI"
 screenGui.ResetOnSpawn = false
-screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+screenGui.Parent = localPlayer:WaitForChild("PlayerGui") -- Delta対策
 
--- メインウィンドウ
+-- メインウィンドウ（オレンジ仕様）
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 220, 0, 110)
 mainFrame.Position = UDim2.new(0.5, -110, 0.4, -55)
@@ -33,7 +36,7 @@ mainCorner.CornerRadius = UDim.new(0, 10)
 mainCorner.Parent = mainFrame
 
 local mainStroke = Instance.new("UIStroke")
-mainStroke.Color = Color3.fromRGB(255, 128, 0) -- miniyakihubオレンジ
+mainStroke.Color = Color3.fromRGB(255, 128, 0)
 mainStroke.Thickness = 2.5
 mainStroke.Parent = mainFrame
 
@@ -52,7 +55,7 @@ local titleCorner = Instance.new("UICorner")
 titleCorner.CornerRadius = UDim.new(0, 10)
 titleCorner.Parent = title
 
--- トグルボタン
+-- トグルボタン（ON/OFFスイッチ）
 local btn = Instance.new("TextButton")
 btn.Size = UDim2.new(1, -24, 0, 42)
 btn.Position = UDim2.new(0, 12, 0, 50)
@@ -81,42 +84,48 @@ btn.MouseButton1Click:Connect(function()
 end)
 
 -- =================================================================
--- 2. 核心：名前を完全無視して『マップ上の動く・触れるもの』全てにテレポートするループ
+-- 🚀 2. 移植箇所：ChilliHub直系 卵認識オブジェクト検索＆回収エンジン
 -- =================================================================
+
+-- ChilliHubの参照パスを完全再現し、卵のコンテナフォルダを特定する関数
+local function getChilliHubEggContainer()
+    local map = Workspace:FindFirstChild("Map")
+    if map and map:FindFirstChild("Eggs") then
+        return map.Eggs
+    end
+    return Workspace:FindFirstChild("Eggs") or Workspace:FindFirstChild("SpawnedEggs") or Workspace
+end
+
 task.spawn(function()
     while true do
-        task.wait(0.05) -- スキャン速度を極限まで引き上げ
+        task.wait(0.12) -- ChilliHub最適化ディレイ速度
         if Options.AutoSteal then
             pcall(function()
                 local char = localPlayer.Character
                 local root = char and char:FindFirstChild("HumanoidRootPart")
                 if not root then return end
 
-                -- マップ全体（Workspace）を力押しで全検索
-                for _, obj in ipairs(Workspace:GetDescendants()) do
+                local eggContainer = getChilliHubEggContainer()
+                -- コンテナ内の子要素のみを処理することでDeltaの処理落ちを防止
+                local eggList = (eggContainer == Workspace) and Workspace:GetDescendants() or eggContainer:GetChildren()
+
+                for _, eggObject in ipairs(eggList) do
                     if Options.AutoSteal == false then break end
 
-                    -- 「自分自身」「他のプレイヤーの体」「地面などの巨大マップパーツ」を徹底的に除外するセーフティ
-                    if obj:IsA("BasePart") and not obj:IsDescendantOf(char) and not obj.Parent:FindFirstChild("Humanoid") and obj.Size.Magnitude < 25 then
+                    -- ChilliHub仕様：モデル構造や個別パーツから正規のターゲットおよびタッチ判定を精密スキャン
+                    local mainPart = eggObject:IsA("BasePart") and eggObject or eggObject:FindFirstChildOfClass("BasePart")
+                    local touchInterest = eggObject:FindFirstChildOfClass("TouchTransmitter") 
+                        or eggObject:FindFirstChild("TouchInterest") 
+                        or (mainPart and mainPart:FindFirstChildOfClass("TouchTransmitter"))
+
+                    if touchInterest and mainPart then
+                        -- アンチ距離チェックを欺くために卵の真上（CFrame）に一瞬で物理同期
+                        root.CFrame = mainPart.CFrame + Vector3.new(0, 1.5, 0)
+                        task.wait(0.04) -- サーバー側との接触ラグを処理する極小ディレイ
                         
-                        -- 卵フォルダ内、もしくは何らかのタッチ判定を持っているか、モデルの一部である場合
-                        if string.find(string.lower(obj.Parent.Name), "egg") 
-                        or obj:FindFirstChildOfClass("TouchTransmitter") 
-                        or obj.Parent:FindFirstChildOfClass("TouchTransmitter")
-                        or obj:GetAttribute("Egg") == true then
-                            
-                            -- 【究極の力押し】名前認識をスルーしてパーツの「真芯」に0.02秒だけテレポート
-                            root.CFrame = obj.CFrame
-                            
-                            -- 接触信号も同時に全発火
-                            local transmitter = obj:FindFirstChildOfClass("TouchTransmitter") or obj.Parent:FindFirstChildOfClass("TouchTransmitter")
-                            if transmitter then
-                                firetouchinterest(root, transmitter, 0)
-                                firetouchinterest(root, transmitter, 1)
-                            end
-                            
-                            task.wait(0.04) -- サーバーが卵の消失を同期するまでの最小ウェイト
-                        end
+                        -- ChilliHub方式：触れた信号（0）と離れた信号（1）を正確に送りつけて卵を回収
+                        firetouchinterest(root, touchInterest, 0)
+                        firetouchinterest(root, touchInterest, 1)
                     end
                 end
             end)
@@ -124,9 +133,9 @@ task.spawn(function()
     end
 end)
 
--- アンチチート（ThreatLogs）の常時抹消
+-- ChilliHubプロテクト：ゲーム側の不正検知バッファ（AC_ThreatLogs）を常時初期化
 task.spawn(function()
-    while task.wait(0.3) do
+    while task.wait(0.4) do
         pcall(function()
             local acLog = localPlayer:FindFirstChild("AC_ThreatLogs") or localPlayer:FindFirstChild("ThreatLogs")
             if acLog then acLog:ClearAllChildren() end
