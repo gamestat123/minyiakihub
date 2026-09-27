@@ -1,10 +1,9 @@
--- [[ miniyakihub - Delta Mobile Safe Path Farm Working ]]
+-- [[ miniyakihub - Delta Absolute Fixed Recovery Engine ]]
 local Players          = game:GetService("Players")
 local Workspace        = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local localPlayer      = Players.LocalPlayer
 
--- 自動化の状態管理（初期状態はOFF）
+-- UIの状態管理（初期状態はOFF）
 local Options = { AutoSteal = false }
 
 -- =================================================================
@@ -82,50 +81,36 @@ btn.MouseButton1Click:Connect(function()
 end)
 
 -- =================================================================
--- 2. コア機能：ブロック不可能な「爆速物理走行回収」システム
+-- 2. コア機能：名前を無視して『タッチ判定』に直接密着する超高速追従システム
 -- =================================================================
--- ゲームが卵を格納している専用フォルダの自動特定
-local function getValidEggFolder()
-    return Workspace:FindFirstChild("Eggs") 
-        or Workspace:FindFirstChild("SpawnedEggs") 
-        or Workspace:FindFirstChild("DroppedEggs")
-        or Workspace
-end
-
 task.spawn(function()
     while true do
-        task.wait(0.1)
+        task.wait(0.01) -- Deltaの限界速度でループ
         if Options.AutoSteal then
             pcall(function()
                 local char = localPlayer.Character
-                local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-                if not humanoid or humanoid.Health <= 0 then return end
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if not root then return end
 
-                -- 【アンチチート突破】キャラの走るスピードをブロックされない安全な超高速（例: 80）に固定
-                humanoid.WalkSpeed = 80
-
-                local folder = getValidEggFolder()
-                local eggs = (folder == Workspace) and Workspace:GetDescendants() or folder:GetChildren()
-
-                for _, egg in ipairs(eggs) do
+                -- マップ上のすべての「触れる判定」を強制取得（名前がeggでなくても検知）
+                for _, obj in ipairs(Workspace:GetDescendants()) do
                     if Options.AutoSteal == false then break end
 
-                    -- 卵の本体パーツを取得
-                    local eggPart = egg:IsA("BasePart") and egg or egg:FindFirstChildOfClass("BasePart")
-                    if eggPart and (string.find(string.lower(egg.Name), "egg") or string.find(string.lower(eggPart.Name), "egg") or egg:FindFirstChildOfClass("TouchTransmitter")) then
+                    -- タッチセンサー（TouchTransmitter）を持つパーツをピンポイント特定
+                    if obj:IsA("TouchTransmitter") and obj.Parent and obj.Parent:IsA("BasePart") then
+                        local eggPart = obj.Parent
                         
-                        -- 卵がまだマップに存在し、触れる状態か確認
-                        if eggPart.Parent and (eggPart:FindFirstChildOfClass("TouchTransmitter") or egg:FindFirstChildOfClass("TouchTransmitter")) then
+                        -- 自分のベース（Home）の判定や自分自身のパーツは除外するセーフティ
+                        if not eggPart:IsDescendantOf(char) and not string.find(string.lower(eggPart.Name), "base") and not string.find(string.lower(eggPart.Name), "pad") then
                             
-                            -- 【最強の回避策】Roblox公式のパス移動を使い、卵の座標まで爆速でキャラを物理的に走らせる
-                            humanoid:MoveTo(eggPart.Position)
+                            -- 【最強の修正点】名前に関係なく、ターゲットの「真上」に強制座標同期
+                            root.CFrame = eggPart.CFrame + Vector3.new(0, 1, 0)
                             
-                            -- 卵に接触して消えるまで、最大で1秒間だけ待機（引っかかり防止）
-                            local count = 0
-                            while eggPart.Parent and eggPart:FindFirstChildOfClass("TouchTransmitter") and count < 10 do
-                                task.wait(0.1)
-                                count = count + 1
-                            end
+                            -- 物理接触が起きてもアンチチートで弾かれないよう、信号も同時に撃ち込む
+                            firetouchinterest(root, obj, 0)
+                            firetouchinterest(root, obj, 1)
+                            
+                            task.wait(0.08) -- サーバーが「回収完了」を処理するまでの最小待機
                         end
                     end
                 end
@@ -134,15 +119,12 @@ task.spawn(function()
     end
 end)
 
--- スイッチOFF時に速度を通常（16）に戻すセーフティスレッド
+-- アンチチート（ThreatLogs）の自動消去（キック防止）
 task.spawn(function()
-    while task.wait(0.5) do
-        if not Options.AutoSteal then
-            pcall(function()
-                local char = localPlayer.Character
-                local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-                if humanoid then humanoid.WalkSpeed = 16 end
-            end)
-        end
+    while task.wait(0.4) do
+        pcall(function()
+            local acLog = localPlayer:FindFirstChild("AC_ThreatLogs") or localPlayer:FindFirstChild("ThreatLogs")
+            if acLog then acLog:ClearAllChildren() end
+        end)
     end
 end)
