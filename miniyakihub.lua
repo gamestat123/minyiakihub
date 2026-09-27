@@ -45,27 +45,27 @@ local Slider = PlayerTab:CreateSlider({
    end,
 })
 
--- 3. 自動化のON/OFF変数（頭の local を削除してグローバル化）
-_G.AutoSteal = false 
-
--- 「PlayerTab」に対してトグルを作成するように修正
-local Toggle = PlayerTab:CreateToggle({
-   Name = "Auto Steal Eggs",
+local Toggle = Tab:CreateToggle({
+   Name = "Toggle Example",
    CurrentValue = false,
-   Flag = "ToggleAutoSteal", 
+   Flag = "Toggle1", -- A flag is the identifier for the configuration file; make sure every element has a different flag if you're using configuration saving to ensure no overlaps
    Callback = function(Value)
-      _G.AutoSteal = Value 
+   -- 💡 Tweenを使った滑らかな高速移動のサンプル
+local TweenService = game:GetService("TweenService")
+local character = game.Players.LocalPlayer.Character
+local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 
-      if _G.AutoSteal == true then
-         task.spawn(function()
-            while _G.AutoSteal == true do
-               
-               -- 💡 ここに「Steal an Egg」用の具体的な卵泥棒コードを挟みます
-               print("卵を自動で盗んでいます...") 
+if rootPart then
+    local targetPosition = Vector3.new(100, 10, 50) -- 目的地の座標
+    local distance = (rootPart.Position - targetPosition).Magnitude
+    local speed = 50 -- 秒速50スタッド（アンチチートに引っかからない限界の速さに調整可能）
+    local duration = distance / speed
 
-               task.wait(1) 
-            end
-         end)
-      end
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = CFrame.new(targetPosition)})
+    tween:Play()
+    tween.Completed:Wait() -- 移動が終わるまで待つ
+end
+
    end,
 })
