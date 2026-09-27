@@ -1,4 +1,4 @@
--- [[ miniyakihub - UI強制描画・アンチ検知バイパス版 ]]
+-- [[ miniyakihub - Delta Executor Mobile Fixed ]]
 local Players          = game:GetService("Players")
 local Workspace        = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -10,47 +10,30 @@ local Options = { AutoSteal = false, AutoHatch = false, AutoPlace = false }
 local networking = ReplicatedStorage:WaitForChild("Packages", 5) and ReplicatedStorage.Packages:WaitForChild("Networking", 5)
 
 -- =================================================================
--- 1. アンチチートを破壊するUI偽装生成システム
+-- 1. Delta専用：強制描画UI偽装システム
 -- =================================================================
--- ゲーム側のUIスキャンを避けるため、名前を完全にランダムな英数字にする
-local function generateRandomName()
-    local characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    local name = ""
-    for i = 1, 16 do
-        local rand = math.random(1, #characters)
-        name = name .. string.sub(characters, rand, rand)
-    end
-    return name
+-- 古い同名UIが残っていたら競合を防ぐため事前に消去
+for _, old in ipairs(localPlayer:WaitForChild("PlayerGui"):GetChildren()) do
+    if old.Name == "miniyakihub_DeltaUI" then old:Destroy() end
 end
-
--- 既存の古いUIがあれば削除
-local oldUI = game:GetService("CoreGui"):FindFirstChild("miniyakihub_FixedUI_v3") or localPlayer:WaitForChild("PlayerGui"):FindFirstChild("miniyakihub_FixedUI_v3")
-if oldUI then oldUI:Destroy() end
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "miniyakihub_FixedUI_v3"
+screenGui.Name = "miniyakihub_DeltaUI"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
-screenGui.DisplayOrder = 9999 -- 他のすべてのUIよりも手前に強制配置
+screenGui.DisplayOrder = 99999 -- 最前面に強制レイヤー配置
 
--- 描画エラーを完全に回避する親オブジェクトの選択
-if typeof(gethui) == "function" then
-    screenGui.Parent = gethui()
-else
-    screenGui.Parent = game:GetService("CoreGui") or localPlayer:WaitForChild("PlayerGui")
-end
+-- 【Delta対策】セキュリティエラーを回避するため、Deltaが一番得意とするPlayerGuiを親に指定
+screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 
--- =================================================================
--- 2. オレンジ仕様デザインの構築
--- =================================================================
+-- メインウィンドウ（スマホの画面サイズに合わせてレスポンシブに中央配置）
 local mainFrame = Instance.new("Frame")
-mainFrame.Name = generateRandomName()
-mainFrame.Size = UDim2.new(0, 230, 0, 210)
-mainFrame.Position = UDim2.new(0.3, 0, 0.3, 0) -- 画面中央付近に出現
+mainFrame.Size = UDim2.new(0, 220, 0, 200)
+mainFrame.Position = UDim2.new(0.5, -110, 0.4, -100) -- スマホ画面のほぼ中央に強制表示！
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
-mainFrame.Draggable = true -- マウスや指で自由に移動可能
+mainFrame.Draggable = true -- スマホのタップドラッグ操作に対応
 mainFrame.Parent = screenGui
 
 local mainCorner = Instance.new("UICorner")
@@ -59,8 +42,8 @@ mainCorner.Parent = mainFrame
 
 -- オレンジの枠線
 local mainStroke = Instance.new("UIStroke")
-mainStroke.Color = Color3.fromRGB(255, 128, 0)
-mainStroke.Thickness = 2
+mainStroke.Color = Color3.fromRGB(255, 128, 0) -- 鮮やかなオレンジ
+mainStroke.Thickness = 2.5
 mainStroke.Parent = mainFrame
 
 -- ヘッダー
@@ -74,14 +57,14 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -10, 1, 0)
 title.Position = UDim2.new(0, 10, 0, 0)
 title.BackgroundTransparency = 1
-title.Text = "🍊 miniyakihub"
+title.Text = "🍊 miniyakihub (Delta)"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.Font = Enum.Font.GothamBold
-title.TextSize = 14
+title.TextSize = 13
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = header
 
--- ボタン生成共通ロジック
+-- ボタン生成（モバイルのタップ操作に最適化）
 local function AddCustomToggle(text, posY, optionKey)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, -20, 0, 40)
@@ -90,7 +73,7 @@ local function AddCustomToggle(text, posY, optionKey)
     btn.Text = "  " .. text .. ": OFF"
     btn.TextColor3 = Color3.fromRGB(180, 180, 180)
     btn.Font = Enum.Font.GothamMedium
-    btn.TextSize = 12
+    btn.TextSize = 11
     btn.TextXAlignment = Enum.TextXAlignment.Left
     btn.Parent = mainFrame
 
@@ -98,12 +81,13 @@ local function AddCustomToggle(text, posY, optionKey)
     btnCorner.CornerRadius = UDim.new(0, 6)
     btnCorner.Parent = btn
 
+    -- タップ（クリック）時のイベント処理
     btn.MouseButton1Click:Connect(function()
         Options[optionKey] = not Options[optionKey]
         if Options[optionKey] then
             btn.Text = "  " .. text .. ": ON"
             btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            btn.BackgroundColor3 = Color3.fromRGB(255, 128, 0) -- ONでオレンジ色に変化
+            btn.BackgroundColor3 = Color3.fromRGB(255, 128, 0) -- ONでオレンジ化
         else
             btn.Text = "  " .. text .. ": OFF"
             btn.TextColor3 = Color3.fromRGB(180, 180, 180)
@@ -112,13 +96,13 @@ local function AddCustomToggle(text, posY, optionKey)
     end)
 end
 
--- 3つのボタンを配置
-AddCustomToggle("Auto Steal (自動回収)", 45, "AutoSteal")
-AddCustomToggle("Auto Hatch (自動孵化)", 100, "AutoHatch")
+-- ボタンを縦並びで配置
+AddCustomToggle("Auto Steal (自動卵回収)", 45, "AutoSteal")
+AddCustomToggle("Auto Hatch (自動卵孵化)", 100, "AutoHatch")
 AddCustomToggle("Auto Place (自動配置)", 155, "AutoPlace")
 
 -- =================================================================
--- 3. 自動化コアループ (強化版)
+-- 2. 自動化ロジック (Delta 処理速度最適化版)
 -- =================================================================
 local function isValidEgg(part)
     if not part or not part.Parent then return false end
@@ -127,10 +111,10 @@ local function isValidEgg(part)
     return string.find(name, "egg") or string.find(parentName, "egg") or part:FindFirstChild("EggPart")
 end
 
--- 卵回収スレッド
+-- 卵回収ループ
 task.spawn(function()
     while true do
-        task.wait(0.15)
+        task.wait(0.2) -- モバイル端末の負荷を考慮し、微修正
         if Options.AutoSteal then
             pcall(function()
                 local root = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -150,20 +134,17 @@ task.spawn(function()
     end
 end)
 
--- リモート発火スレッド
+-- リモート通信ループ
 task.spawn(function()
     while true do
-        task.wait(0.4)
+        task.wait(0.5)
         pcall(function()
             if not networking then
                 networking = ReplicatedStorage:FindFirstChild("Packages") and ReplicatedStorage.Packages:FindFirstChild("Networking")
             end
             if not networking then return end
 
-            local eggEvent = networking:FindFirstChild("EggNetwork") 
-                or networking:FindFirstChild("GameplayNetwork") 
-                or networking:FindFirstChild("RemoteEvent")
-                
+            local eggEvent = networking:FindFirstChild("EggNetwork") or networking:FindFirstChild("GameplayNetwork")
             if not eggEvent then return end
 
             if Options.AutoHatch then 
@@ -178,9 +159,9 @@ task.spawn(function()
     end
 end)
 
--- アンチチート防御
+-- アンチチート検知データの防御
 task.spawn(function()
-    while task.wait(0.3) do
+    while task.wait(0.5) do
         pcall(function()
             local acLog = localPlayer:FindFirstChild("AC_ThreatLogs") or localPlayer:FindFirstChild("ThreatLogs")
             if acLog then acLog:ClearAllChildren() end
