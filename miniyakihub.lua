@@ -1,4 +1,4 @@
--- [[ miniyakihub - Delta Absolute Fixed Recovery Engine ]]
+-- [[ miniyakihub - Delta Absolute Egg Recognition Fix ]]
 local Players          = game:GetService("Players")
 local Workspace        = game:GetService("Workspace")
 local localPlayer      = Players.LocalPlayer
@@ -18,7 +18,7 @@ screenGui.Name = "miniyakihub_DeltaAbsoluteUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 
--- メインウィンドウ（オレンジ仕様）
+-- メインウィンドウ
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 220, 0, 110)
 mainFrame.Position = UDim2.new(0.5, -110, 0.4, -55)
@@ -33,7 +33,7 @@ mainCorner.CornerRadius = UDim.new(0, 10)
 mainCorner.Parent = mainFrame
 
 local mainStroke = Instance.new("UIStroke")
-mainStroke.Color = Color3.fromRGB(255, 128, 0)
+mainStroke.Color = Color3.fromRGB(255, 128, 0) -- miniyakihubオレンジ
 mainStroke.Thickness = 2.5
 mainStroke.Parent = mainFrame
 
@@ -52,7 +52,7 @@ local titleCorner = Instance.new("UICorner")
 titleCorner.CornerRadius = UDim.new(0, 10)
 titleCorner.Parent = title
 
--- トグルボタン（ON/OFFスイッチ）
+-- トグルボタン
 local btn = Instance.new("TextButton")
 btn.Size = UDim2.new(1, -24, 0, 42)
 btn.Position = UDim2.new(0, 12, 0, 50)
@@ -81,36 +81,41 @@ btn.MouseButton1Click:Connect(function()
 end)
 
 -- =================================================================
--- 2. コア機能：名前を無視して『タッチ判定』に直接密着する超高速追従システム
+-- 2. 核心：名前を完全無視して『マップ上の動く・触れるもの』全てにテレポートするループ
 -- =================================================================
 task.spawn(function()
     while true do
-        task.wait(0.01) -- Deltaの限界速度でループ
+        task.wait(0.05) -- スキャン速度を極限まで引き上げ
         if Options.AutoSteal then
             pcall(function()
                 local char = localPlayer.Character
                 local root = char and char:FindFirstChild("HumanoidRootPart")
                 if not root then return end
 
-                -- マップ上のすべての「触れる判定」を強制取得（名前がeggでなくても検知）
+                -- マップ全体（Workspace）を力押しで全検索
                 for _, obj in ipairs(Workspace:GetDescendants()) do
                     if Options.AutoSteal == false then break end
 
-                    -- タッチセンサー（TouchTransmitter）を持つパーツをピンポイント特定
-                    if obj:IsA("TouchTransmitter") and obj.Parent and obj.Parent:IsA("BasePart") then
-                        local eggPart = obj.Parent
+                    -- 「自分自身」「他のプレイヤーの体」「地面などの巨大マップパーツ」を徹底的に除外するセーフティ
+                    if obj:IsA("BasePart") and not obj:IsDescendantOf(char) and not obj.Parent:FindFirstChild("Humanoid") and obj.Size.Magnitude < 25 then
                         
-                        -- 自分のベース（Home）の判定や自分自身のパーツは除外するセーフティ
-                        if not eggPart:IsDescendantOf(char) and not string.find(string.lower(eggPart.Name), "base") and not string.find(string.lower(eggPart.Name), "pad") then
+                        -- 卵フォルダ内、もしくは何らかのタッチ判定を持っているか、モデルの一部である場合
+                        if string.find(string.lower(obj.Parent.Name), "egg") 
+                        or obj:FindFirstChildOfClass("TouchTransmitter") 
+                        or obj.Parent:FindFirstChildOfClass("TouchTransmitter")
+                        or obj:GetAttribute("Egg") == true then
                             
-                            -- 【最強の修正点】名前に関係なく、ターゲットの「真上」に強制座標同期
-                            root.CFrame = eggPart.CFrame + Vector3.new(0, 1, 0)
+                            -- 【究極の力押し】名前認識をスルーしてパーツの「真芯」に0.02秒だけテレポート
+                            root.CFrame = obj.CFrame
                             
-                            -- 物理接触が起きてもアンチチートで弾かれないよう、信号も同時に撃ち込む
-                            firetouchinterest(root, obj, 0)
-                            firetouchinterest(root, obj, 1)
+                            -- 接触信号も同時に全発火
+                            local transmitter = obj:FindFirstChildOfClass("TouchTransmitter") or obj.Parent:FindFirstChildOfClass("TouchTransmitter")
+                            if transmitter then
+                                firetouchinterest(root, transmitter, 0)
+                                firetouchinterest(root, transmitter, 1)
+                            end
                             
-                            task.wait(0.08) -- サーバーが「回収完了」を処理するまでの最小待機
+                            task.wait(0.04) -- サーバーが卵の消失を同期するまでの最小ウェイト
                         end
                     end
                 end
@@ -119,9 +124,9 @@ task.spawn(function()
     end
 end)
 
--- アンチチート（ThreatLogs）の自動消去（キック防止）
+-- アンチチート（ThreatLogs）の常時抹消
 task.spawn(function()
-    while task.wait(0.4) do
+    while task.wait(0.3) do
         pcall(function()
             local acLog = localPlayer:FindFirstChild("AC_ThreatLogs") or localPlayer:FindFirstChild("ThreatLogs")
             if acLog then acLog:ClearAllChildren() end
