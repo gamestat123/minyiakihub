@@ -1,126 +1,56 @@
--- [[ miniyakihub - Delta Mobile UI & Target Magnet Fusion Working ]]
-local Players          = game:GetService("Players")
-local Workspace        = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local localPlayer      = Players.LocalPlayer
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- 自動化の状態管理（初期状態はOFF）
-local Options = { AutoSteal = false }
+local Window = Rayfield:CreateWindow({
+   Name = "minyaki HUB",
+   Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
+   LoadingTitle = "minyaki HUB",
+   LoadingSubtitle = "inyaki HUB",
+   ShowText = "Rayfield", -- for mobile users to unhide Rayfield, change if you'd like
+   Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
 
--- =================================================================
--- 1. Delta専用：UI強制表示（PlayerGui配置 ＆ 画面中央固定）
--- =================================================================
-for _, old in ipairs(localPlayer:WaitForChild("PlayerGui"):GetChildren()) do
-    if old.Name == "miniyakihub_DeltaAbsoluteUI" then old:Destroy() end
-end
+   ToggleUIKeybind = "K", -- The keybind to toggle the UI visibility (string like "K" or Enum.KeyCode)
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "miniyakihub_DeltaAbsoluteUI"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false, -- Prevents Rayfield from emitting warnings when the script has a version mismatch with the interface.
 
--- メインウィンドウ（オレンジ仕様）
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 220, 0, 110)
-mainFrame.Position = UDim2.new(0.5, -110, 0.4, -55)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Parent = screenGui
+   -- ScriptID = "sid_xxxxxxxxxxxx", -- Your Script ID from developer.sirius.menu — enables analytics, managed keys, and script hosting
 
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 10)
-mainCorner.Parent = mainFrame
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil, -- Create a custom folder for your hub/game
+      FileName = "Big Hub"
+   },
 
-local mainStroke = Instance.new("UIStroke")
-mainStroke.Color = Color3.fromRGB(255, 128, 0)
-mainStroke.Thickness = 2.5
-mainStroke.Parent = mainFrame
+   Discord = {
+      Enabled = false, -- Prompt the user to join your Discord server if their executor supports it
+      Invite = "noinvitelink", -- The Discord invite code, do not include Discord.gg/. E.g. Discord.gg/ABCD would be ABCD
+      RememberJoins = true -- Set this to false to make them join the Discord every time they load it up
+   },
 
--- タイトル
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 35)
-title.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-title.Text = "  🍊 miniyakihub"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 13
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Parent = mainFrame
+   KeySystem = false, -- Set this to true to use our key system
+   KeySettings = {
+      Title = "Untitled",
+      Subtitle = "Key System",
+      Note = "No method of obtaining the key is provided", -- Use this to tell the user how to get a key
+      FileName = "Key", -- It is recommended to use something unique, as other scripts using Rayfield may overwrite your key file
+      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
+      GrabKeyFromSite = false, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
+      Key = {"Hello"} -- List of keys that the system will accept, can be RAW file links (pastebin, github, etc.) or simple strings ("hello", "key22")
+   }
+})
 
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 10)
-titleCorner.Parent = title
+local PlayerTab = Window:CreateTab("Player", 4483362458) -- Title, Image
 
--- トグルボタン（ON/OFFスイッチ）
-local btn = Instance.new("TextButton")
-btn.Size = UDim2.new(1, -24, 0, 42)
-btn.Position = UDim2.new(0, 12, 0, 50)
-btn.BackgroundColor3 = Color3.fromRGB(45, 42, 40)
-btn.Text = "Auto Steal (自動卵回収) : OFF"
-btn.TextColor3 = Color3.fromRGB(180, 175, 170)
-btn.Font = Enum.Font.GothamMedium
-btn.TextSize = 11
-btn.Parent = mainFrame
+local Slider = PlayerTab:CreateSlider({
+   Name = "speed",
+   Range = {0, 100},
+   Increment = 10,
+   Suffix = "speed",
+   CurrentValue = 10,
+   Flag = "Slider1", 
+   Callback = function(Value)
+  game.players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
 
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 8)
-btnCorner.Parent = btn
+   end,
+})
 
-btn.MouseButton1Click:Connect(function()
-    Options.AutoSteal = not Options.AutoSteal
-    if Options.AutoSteal then
-        btn.BackgroundColor3 = Color3.fromRGB(255, 128, 0)
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.Text = "Auto Steal (自動卵回収) : ON"
-    else
-        btn.BackgroundColor3 = Color3.fromRGB(45, 42, 40)
-        btn.TextColor3 = Color3.fromRGB(180, 175, 170)
-        btn.Text = "Auto Steal (自動卵回収) : OFF"
-    end
-end)
-
--- =================================================================
--- 2. コア機能：パッチ不可能・卵パーツ引き寄せ（マグネット）システム
--- =================================================================
-task.spawn(function()
-    while true do
-        task.wait(0.1) -- 高速スキャン
-        if Options.AutoSteal then
-            pcall(function()
-                local char = localPlayer.Character
-                local root = char and char:FindFirstChild("HumanoidRootPart")
-                if not root then return end
-
-                -- マップ上のすべてのオブジェクトをチェック
-                for _, obj in ipairs(Workspace:GetDescendants()) do
-                    if Options.AutoSteal == false then break end
-                    
-                    -- モデルまたはパーツ名に「egg」「spawn」「pickup」が含まれるものを検知
-                    if obj:IsA("BasePart") and (string.find(string.lower(obj.Name), "egg") or string.find(string.lower(obj.Name), "spawn") or string.find(string.lower(obj.Name), "pickup") or obj:FindFirstChildOfClass("TouchTransmitter")) then
-                        
-                        -- その卵パーツがまだマップに存在し、回収可能か確認
-                        if obj.Parent and (obj:FindFirstChildOfClass("TouchTransmitter") or obj.Parent:FindFirstChildOfClass("TouchTransmitter")) then
-                            
-                            -- 【パッチ完全突破】自分の体を動かすのではなく、卵パーツの座標（CFrame）を自分のパーツの目の前に強制的に引き寄せる！
-                            obj.CFrame = root.CFrame + root.CFrame.LookVector * 0.5
-                            obj.Velocity = Vector3.new(0,0,0) -- 物理演算で吹き飛ぶのを防止
-                            
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- アンチチート（ThreatLogs）の自動消去（キック防止）
-task.spawn(function()
-    while task.wait(0.5) do
-        pcall(function()
-            local acLog = localPlayer:FindFirstChild("AC_ThreatLogs") or localPlayer:FindFirstChild("ThreatLogs")
-            if acLog then acLog:ClearAllChildren() end
-        end)
-    end
-end)
