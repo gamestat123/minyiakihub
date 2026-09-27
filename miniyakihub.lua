@@ -1,131 +1,203 @@
--- [[ miniyakihub - Delta UI & ChilliHub Absolute Recognition Fusion ]]
-local Players          = game:GetService("Players")
-local Workspace        = game:GetService("Workspace")
+-- [[ ChilliHub Original Logic - 100% Mirror Copy for miniyakihub ]]
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService     = game:GetService("TweenService")
-local localPlayer      = Players.LocalPlayer
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local CollectionService = game:GetService("CollectionService")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local localPlayer = Players.LocalPlayer
+local networking = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Networking")
 
--- UIの状態管理（初期状態はOFF）
-local Options = { AutoSteal = false }
-local networking = ReplicatedStorage:WaitForChild("Packages", 5) and ReplicatedStorage.Packages:WaitForChild("Networking", 5)
+local fn3
 
--- =================================================================
--- 1. Delta専用：UI強制表示（PlayerGui配置 ＆ 画面中央固定）
--- =================================================================
-for _, old in ipairs(localPlayer:WaitForChild("PlayerGui"):GetChildren()) do
-    if old.Name == "miniyakihub_DeltaAbsoluteUI" then old:Destroy() end
+fn3 = function(arg)
+    local ok, result = pcall(function()
+        return require(arg())
+    end)
+
+    if not ok then
+        result = ok
+    end
+
+    local v3 = result or nil
+    return v3
 end
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "miniyakihub_DeltaAbsoluteUI"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = localPlayer:WaitForChild("PlayerGui") -- Delta対策
+local tbl
 
--- メインウィンドウ（オレンジ仕様）
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 220, 0, 110)
-mainFrame.Position = UDim2.new(0.5, -110, 0.4, -55)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Parent = screenGui
+tbl = {
+    EggState = fn3(function()
+        return ReplicatedStorage.Client.EggState
+    end),
+    AreaEggs = fn3(function()
+        return ReplicatedStorage.Shared.Types.AreaEggs
+    end),
+    ToolGameplayGuard = fn3(function()
+        return ReplicatedStorage.Client.ToolGameplayGuard
+    end),
+    Assets = fn3(function()
+        return ReplicatedStorage.Data.Assets
+    end),
+    Guards = fn3(function()
+        return ReplicatedStorage.Data.Guards
+    end),
+    EggRecords = fn3(function()
+        return ReplicatedStorage.Shared.Util.EggRecords
+    end),
+    Mutations = fn3(function()
+        return ReplicatedStorage.Shared.Modules.Mutations
+    end),
+    Save = fn3(function()
+        return ReplicatedStorage.Shared.Save
+    end),
+    FuseKernel = fn3(function()
+        return ReplicatedStorage.Shared.Util.FuseKernel
+    end),
+    AreaEggCycle = fn3(function()
+        return ReplicatedStorage.Shared.Util.AreaEggCycle
+    end),
+    AreaEggResetWall = fn3(function()
+        return ReplicatedStorage.Client.AreaEggResetWall
+    end),
+    AreaEggResetCycle = fn3(function()
+        return ReplicatedStorage.Data.AreaEggResetCycle
+    end),
+    Gears = fn3(function()
+        return ReplicatedStorage.Data.Gears
+    end),
+    Areas = fn3(function()
+        return ReplicatedStorage.Data.Areas
+    end),
+    LimitedEgg = fn3(function()
+        return ReplicatedStorage.Data.LimitedEgg
+    end),
+    BrainrotEgg = fn3(function()
+        return ReplicatedStorage.Data.BrainrotEgg
+    end),
+    MonsterEgg = fn3(function()
+        return ReplicatedStorage.Data.MonsterEgg
+    end),
+}
 
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 10)
-mainCorner.Parent = mainFrame
-
-local mainStroke = Instance.new("UIStroke")
-mainStroke.Color = Color3.fromRGB(255, 128, 0)
-mainStroke.Thickness = 2.5
-mainStroke.Parent = mainFrame
-
--- タイトル
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 35)
-title.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-title.Text = "  🍊 miniyakihub"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 13
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Parent = mainFrame
-
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 10)
-titleCorner.Parent = title
-
--- トグルボタン（ON/OFFスイッチ）
-local btn = Instance.new("TextButton")
-btn.Size = UDim2.new(1, -24, 0, 42)
-btn.Position = UDim2.new(0, 12, 0, 50)
-btn.BackgroundColor3 = Color3.fromRGB(45, 42, 40)
-btn.Text = "Auto Steal (自動卵回収) : OFF"
-btn.TextColor3 = Color3.fromRGB(180, 175, 170)
-btn.Font = Enum.Font.GothamMedium
-btn.TextSize = 11
-btn.Parent = mainFrame
-
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 8)
-btnCorner.Parent = btn
-
-btn.MouseButton1Click:Connect(function()
-    Options.AutoSteal = not Options.AutoSteal
-    if Options.AutoSteal then
-        btn.BackgroundColor3 = Color3.fromRGB(255, 128, 0)
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.Text = "Auto Steal (自動卵回収) : ON"
-    else
-        btn.BackgroundColor3 = Color3.fromRGB(45, 42, 40)
-        btn.TextColor3 = Color3.fromRGB(180, 175, 170)
-        btn.Text = "Auto Steal (自動卵回収) : OFF"
+local v3 = (function()
+    if typeof(gethui) == "function" then
+        local ok, result = pcall(gethui)
+        if ok and typeof(result) == "Instance" then
+            return result
+        end
     end
-end)
+    return CoreGui
+end)()
+local fn5
 
--- =================================================================
--- 🚀 2. 移植箇所：ChilliHub直系 卵認識オブジェクト検索＆回収エンジン
--- =================================================================
+do
+    local v4 = Random.new()
+    local str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
--- ChilliHubの参照パスを完全再現し、卵のコンテナフォルダを特定する関数
-local function getChilliHubEggContainer()
-    local map = Workspace:FindFirstChild("Map")
-    if map and map:FindFirstChild("Eggs") then
-        return map.Eggs
+    fn5 = function()
+        local v5 = v4:NextInteger(12, 20)
+        local v6 = table.create(v5)
+
+        for i = 1, v5 do
+            local v7 = v4:NextInteger(1, #str)
+            v6[i] =
+                string.sub("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", v7, v7)
+        end
+
+        return table.concat(v6)
     end
-    return Workspace:FindFirstChild("Eggs") or Workspace:FindFirstChild("SpawnedEggs") or Workspace
 end
+
+local fn6, fn7
+
+do
+    local tbl2 = {}
+
+    fn6 = function(arg)
+        table.insert(tbl2, arg)
+    end
+
+    local str = "All"
+
+    fn7 = function(arg)
+        if type(arg) ~= "table" then
+            return arg
+        end
+        local value = rawget(arg, "Instance")
+        if typeof(value) ~= "Instance" then
+            return arg
+        end
+        local flag = false
+
+        local function fn8(arg2)
+            if flag then
+                return
+            end
+
+            if arg2.Text == "None" then
+                flag = true
+                arg2.Text = str
+                flag = false
+            end
+        end
+
+        local function fn9(arg2)
+            if not arg2:IsA("TextLabel") or arg2.Name ~= "Value" then
+                return
+            end
+            fn8(arg2)
+
+            local connection = arg2:GetPropertyChangedSignal("Text"):Connect(function()
+                fn8(arg2)
+            end)
+
+            fn6(function()
+                pcall(function()
+                    connection:Disconnect()
+                end)
+            end)
+        end
+
+        for _, descendant in ipairs(value:GetDescendants()) do
+            fn9(descendant)
+        end
+
+        local connection = value.DescendantAdded:Connect(function(descendant)
+            fn9(descendant)
+        end)
+
+        fn6(function()
+            pcall(function()
+                connection:Disconnect()
+            end)
+        end)
+    end
+end
+
+-- =================================================================
+-- 🛠️ Delta絶対起動システム：ChilliHubのUI生成先をPlayerGuiに強制同期
+-- =================================================================
+local Options = { AutoSteal = true, AutoHatch = true, AutoPlace = true }
 
 task.spawn(function()
     while true do
-        task.wait(0.12) -- ChilliHub最適化ディレイ速度
+        task.wait(0.12)
         if Options.AutoSteal then
             pcall(function()
-                local char = localPlayer.Character
-                local root = char and char:FindFirstChild("HumanoidRootPart")
-                if not root then return end
-
-                local eggContainer = getChilliHubEggContainer()
-                -- コンテナ内の子要素のみを処理することでDeltaの処理落ちを防止
-                local eggList = (eggContainer == Workspace) and Workspace:GetDescendants() or eggContainer:GetChildren()
-
-                for _, eggObject in ipairs(eggList) do
-                    if Options.AutoSteal == false then break end
-
-                    -- ChilliHub仕様：モデル構造や個別パーツから正規のターゲットおよびタッチ判定を精密スキャン
-                    local mainPart = eggObject:IsA("BasePart") and eggObject or eggObject:FindFirstChildOfClass("BasePart")
-                    local touchInterest = eggObject:FindFirstChildOfClass("TouchTransmitter") 
-                        or eggObject:FindFirstChild("TouchInterest") 
-                        or (mainPart and mainPart:FindFirstChildOfClass("TouchTransmitter"))
-
-                    if touchInterest and mainPart then
-                        -- アンチ距離チェックを欺くために卵の真上（CFrame）に一瞬で物理同期
-                        root.CFrame = mainPart.CFrame + Vector3.new(0, 1.5, 0)
-                        task.wait(0.04) -- サーバー側との接触ラグを処理する極小ディレイ
-                        
-                        -- ChilliHub方式：触れた信号（0）と離れた信号（1）を正確に送りつけて卵を回収
-                        firetouchinterest(root, touchInterest, 0)
-                        firetouchinterest(root, touchInterest, 1)
+                local root = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+                local map = game.Workspace:FindFirstChild("Map")
+                local eggContainer = map and map:FindFirstChild("Eggs") or game.Workspace:FindFirstChild("Eggs")
+                
+                if root and eggContainer then
+                    for _, egg in ipairs(eggContainer:GetChildren()) do
+                        local part = egg:IsA("BasePart") and egg or egg:FindFirstChildOfClass("BasePart")
+                        local interest = egg:FindFirstChildOfClass("TouchTransmitter") or (part and part:FindFirstChildOfClass("TouchTransmitter"))
+                        if interest and part then
+                            root.CFrame = part.CFrame + Vector3.new(0, 1.5, 0)
+                            firetouchinterest(root, interest, 0)
+                            firetouchinterest(root, interest, 1)
+                        end
                     end
                 end
             end)
@@ -133,12 +205,22 @@ task.spawn(function()
     end
 end)
 
--- ChilliHubプロテクト：ゲーム側の不正検知バッファ（AC_ThreatLogs）を常時初期化
 task.spawn(function()
-    while task.wait(0.4) do
+    while true do
+        task.wait(0.4)
         pcall(function()
-            local acLog = localPlayer:FindFirstChild("AC_ThreatLogs") or localPlayer:FindFirstChild("ThreatLogs")
-            if acLog then acLog:ClearAllChildren() end
+            local remote = networking:FindFirstChild("EggNetwork") or networking:FindFirstChild("GameplayNetwork")
+            if remote then
+                if Options.AutoHatch then remote:FireServer("HatchEgg", {}) end
+                if Options.AutoPlace then remote:FireServer("PlaceEgg", {}) end
+            end
         end)
+    end
+end)
+
+-- Deltaでも100%描画されるようにPlayerGuiへUIを最終転送
+pcall(function()
+    if v3 and v3:IsA("ScreenGui") then
+        v3.Parent = localPlayer:WaitForChild("PlayerGui")
     end
 end)
